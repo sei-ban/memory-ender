@@ -22,9 +22,9 @@
       const start = this.add.text(W / 2, H / 2 + 70, '처음부터 시작', { ...font, fontSize: '16px', color: '#e6edf5', backgroundColor: '#2c394a', padding: { x: 16, y: 7 } })
         .setOrigin(0.5).setInteractive({ useHandCursor: true });
       start.on('pointerdown', () => { ME.sfx.unlock(); ME.sfx.play('ui'); go('Investigate'); });
-      // 챕터 선택 (건너뛰기) — 개발 빌드에서만
-      if (ME.DEV) {
-      this.add.text(W / 2, H / 2 + 34, '(개발 빌드)', { ...font, fontSize: '11px', color: '#56677a' }).setOrigin(0.5);
+      if (ME.DEV) this.add.text(W / 2, H / 2 + 34, '(개발 빌드)', { ...font, fontSize: '11px', color: '#56677a' }).setOrigin(0.5);
+      // 챕터 선택 — 배포 빌드에서도 표시 (면접관이 원하는 구간을 바로 볼 수 있게, 11/23)
+      {
       this.add.text(W / 2, H / 2 + 122, '챕터 선택', { ...font, fontSize: '12px', color: '#7f93a8' }).setOrigin(0.5);
       [['1. 추리', 'Investigate'], ['2. 추격', 'Chase'], ['3. 장례', 'Funeral']].forEach(([label, key], i) => {
         const b = this.add.text(W / 2 + (i - 1) * 110, H / 2 + 152, label, { ...font, fontSize: '14px', color: '#9fb3c8', backgroundColor: '#222c3a', padding: { x: 12, y: 5 } })
@@ -37,9 +37,9 @@
     }
   }
 
-  // 개발 빌드: 어느 장면에서든 Esc를 누르면 타이틀로 (테스트 편의)
+  // 어느 장면에서든 Esc를 누르면 타이틀로 (챕터 선택과 함께 배포 빌드에도 유지)
   window.addEventListener('keydown', (e) => {
-    if (!ME.DEV || e.key !== 'Escape' || !window.__meGame) return;
+    if (e.key !== 'Escape' || !window.__meGame) return;
     const g = window.__meGame;
     ME.sfx.bgmStop(); ME.sfx.humOff();
     g.scene.getScenes(true).forEach(sc => { if (sc.scene.key !== 'Title') sc.scene.stop(); });
