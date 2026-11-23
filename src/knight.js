@@ -115,11 +115,15 @@
       pg.fillStyle(0xc9b9a4, 1).fillRect(-6, -68, 12, 11);
       pg.fillStyle(0x0c0f15, 1).fillRect(-14, -72, 28, 4).fillRect(-8, -82, 16, 10);
       pg.fillStyle(0x7fe6ff, 0.5).fillRect(6, -82, 2, 10);
-      // 팔과 조등
-      pg.fillStyle(0x161b26, 1).fillRect(6, -48, 14, 6);
-      pg.fillStyle(0x2b3442, 1).fillRect(18, -46, 3, 6);
-      pg.fillStyle(0x2b3442, 1).fillRect(20, -40, 12, 12);
-      pg.fillStyle(0xbff6ff, 1).fillRect(22, -38, 8, 8);
-      pg.fillStyle(0xffffff, 1).fillRect(24, -36, 4, 4);
+      // 팔과 조등: 앞으로 겨누는 손잡이 끝에 종이 등을 단 형태 (등 + 총)
+      pg.fillStyle(0x161b26, 1).fillRect(6, -48, 14, 6);                 // 팔
+      pg.fillStyle(0xc9b9a4, 1).fillRect(18, -48, 4, 6);                 // 손
+      pg.fillStyle(0x2b3442, 1).fillRect(20, -46, 12, 3).fillRect(20, -46, 3, 8);   // 손잡이와 자루
+      pg.fillStyle(0x7fe6ff, 0.18).fillCircle(39, -40, 16);              // 등 불빛
+      pg.fillStyle(0x0c0f15, 1).fillRect(34, -50, 10, 3).fillRect(34, -31, 10, 3);  // 위아래 마개
+      pg.fillStyle(0xe8f4f8, 1).fillRect(32, -47, 14, 16);               // 종이 등
+      pg.fillStyle(0xbfe9ff, 1).fillRect(34, -45, 10, 12);
+      pg.fillStyle(0x8fb8c8, 1).fillRect(32, -42, 14, 1).fillRect(32, -37, 14, 1);  // 살
+      pg.fillStyle(0xffffff, 1).fillRect(37, -42, 4, 5);                 // 심지
   };
 })();

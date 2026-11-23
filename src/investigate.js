@@ -52,9 +52,9 @@
       this.tvProg = 0;
       this.phase = 'intro';
       this.openPanel(T.intro, null);
-      this.coach = new ME.Coach(this, H - 100);
+      this.coach = new ME.Coach(this, 82);
       this.tut = { stage: 0, moved: 0, lastX: this.player.x, lastY: this.player.y, aimT: 0 };
-      this.txtHint.setPosition(W / 2, 54);
+      this.txtHint.setPosition(W / 2, H - 40);
       ME.applyLook(this);
       this.cameras.main.fadeIn(500, 0, 0, 0);
     }
@@ -154,17 +154,17 @@
     openPanel(text, title, choices) {
       this.closePanel();
       this.gUi.fillStyle(0x0b0f15, 0.82).fillRect(0, 0, W, H);
-      const bw = 560, bh = choices ? 340 : 220, bx = (W - bw) / 2, by = (H - bh) / 2;
+      const bw = choices ? 720 : 560, bh = choices ? 440 : 220, bx = (W - bw) / 2, by = (H - bh) / 2;
       this.gUi.fillStyle(0x1e2835, 1).fillRect(bx, by, bw, bh);
       this.gUi.lineStyle(2, 0x78e6ff, 0.8).strokeRect(bx, by, bw, bh);
       const f = this.font;
       let y = by + 26;
       if (title) { this.uiTexts.push(this.add.text(W / 2, y, title, { ...f, fontSize: '20px', fontStyle: 'bold', color: '#bff3ff' }).setOrigin(0.5, 0).setDepth(21)); y += 44; }
-      this.uiTexts.push(this.add.text(W / 2, y, text, { ...f, fontSize: '15px', color: '#e6edf5', align: 'center', wordWrap: { width: bw - 60 } }).setOrigin(0.5, 0).setDepth(21));
+      this.uiTexts.push(this.add.text(W / 2, y, text, { ...f, fontSize: choices ? '14px' : '15px', color: '#e6edf5', align: choices ? 'left' : 'center', lineSpacing: 4, wordWrap: { width: bw - 60 } }).setOrigin(0.5, 0).setDepth(21));
       this.choiceRects = [];
       if (choices) {
         choices.forEach((c, i) => {
-          const cx = bx + 40 + (i % 2) * 250, cy = by + 170 + Math.floor(i / 2) * 64, cw = 230, ch = 48;
+          const cw = 300, ch = 46, cx = bx + (bw - cw * 2 - 30) / 2 + (i % 2) * (cw + 30), cy = by + bh - 128 + Math.floor(i / 2) * 58;
           this.gUi.fillStyle(0x2a3646, 1).fillRect(cx, cy, cw, ch);
           this.gUi.lineStyle(1, 0x5d6f85, 1).strokeRect(cx, cy, cw, ch);
           this.uiTexts.push(this.add.text(cx + cw / 2, cy + ch / 2, c, { ...f, fontSize: '16px', color: '#e6edf5' }).setOrigin(0.5).setDepth(21));
@@ -207,7 +207,7 @@
       for (const c of this.clues) {
         if (c.found) continue;
         const d = Math.hypot(c.x - p.x, c.y - p.y);
-        const dist = Math.max(0, 1 - d / I.signalRange);
+        const dist = Math.pow(Math.max(0, 1 - d / I.signalRange), I.signalCurve || 1);
         const align = 0.6 + 0.4 * Math.cos(Phaser.Math.Angle.Wrap(Math.atan2(c.y - p.y, c.x - p.x) - aim));
         best = Math.max(best, dist * align);
       }
@@ -286,7 +286,7 @@
         if (tu.stage === 1) { tu.aimT += dt; if (this.signal() > 0.5 || tu.aimT > 6) tu.stage = 2; }
         if (tu.stage === 2 && found > 0) tu.stage = 3;
         if (tu.stage === 0) step = { icon: 'keys', text: 'WASD 또는 방향키로 방 안을 걸어 보세요' };
-        else if (tu.stage === 1) step = { icon: 'aim', text: '마우스로 조등을 겨눠 보세요. 신호 막대가 차오르는 쪽에 흔적이 있습니다', target: { x: 136, y: H - 36, r: 20 } };
+        else if (tu.stage === 1) step = { icon: 'aim', text: '마우스로 조등을 겨눠 보세요. 신호 막대가 차오르는 쪽에 흔적이 있습니다', };
         else if (tu.stage === 2) step = { icon: 'hold', text: this.mouse.down ? '그대로 누르고 있으세요. 흔적에 빛이 닿으면 원이 채워집니다' : '신호가 강한 쪽을 겨누고 마우스 왼쪽 버튼을 꾹 누르고 있으세요' };
       } else if (this.phase === 'open') {
         const tv = FURNITURE[0];
@@ -296,7 +296,8 @@
     }
     openDeduction() {
       this.phase = 'deduce';
-      const list = this.clues.map(c => '· ' + c.name).join('\n');
+      // 단서마다 핵심 문장을 다시 보여 주고, 장의사의 수칙을 먼저 알려 준다 (11/24 피드백: 처음 하는 사람은 고를 근거가 없다)
+      const list = this.clues.map(c => c.name + ': ' + c.desc.split('\n')[0].replace(/^"/, '')).join('\n') + '\n\n장의사의 수칙: ' + ME.DEDUCTION.wrongHint;
       this.openPanel(list, ME.DEDUCTION.question, ME.DEDUCTION.choices);
     }
     enterTV() {

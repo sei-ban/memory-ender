@@ -39,7 +39,7 @@
       this.gMem = this.add.graphics().setDepth(20);
       const txt = (x, y, size, color, depth) => this.add.text(x, y, '', { ...font, fontSize: size, color, align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 6 }).setOrigin(0.5).setDepth(depth).setAlpha(0);
       this.memText = txt(W / 2, H - 70, '20px', '#fff6e4', 21);
-      this.cineText = txt(W / 2, 110, '22px', '#ffffff', 21);
+      this.cineText = txt(W / 2, 110, '22px', '#ffffff', 21).setStroke('#1a1014', 5);
       this.roomText = txt(W / 2, H - 90, '18px', '#c9d4df', 21);
       this.memSkip = this.add.text(W - 24, H - 20, ME.FUNERAL_TEXT.memSkip, { ...font, fontSize: '12px', color: '#d8c8b0' }).setOrigin(1, 1).setDepth(21).setAlpha(0);
       this.endText = this.add.text(W / 2, H - 36, ME.FUNERAL_TEXT.end, { ...font, fontSize: '13px', color: '#7f93a8' }).setOrigin(0.5).setAlpha(0).setDepth(21);
@@ -48,7 +48,7 @@
 
       this.input.on('pointerdown', p => this.onDown(p));
       this.input.on('pointerup', () => this.onUp());
-      this.coach = new ME.Coach(this, H - 40);
+      this.coach = new ME.Coach(this, H - 30);
       this.prompt.setVisible(false);
       ME.applyLook(this);
       this.cameras.main.fadeIn(900, 255, 255, 255);
@@ -241,12 +241,12 @@
         const sx = KX, sy = KY - (110 - this.drop * 40) * S;
         for (let i = 0; i < 8; i++) {
           const k = (this.t * 1.5 + i / 8) % 1;
-          fx.lineStyle(2, ME.COLORS.wave, 0.7 * (1 - k)).strokeCircle(UX + 20 + (sx - UX - 40) * k, GROUND - 80 + (sy - GROUND + 80) * k, 10 + k * 30);
+          fx.lineStyle(2, ME.COLORS.wave, 0.7 * (1 - k)).strokeCircle(UX + 39 + (sx - UX - 39) * k, GROUND - 39 + (sy - GROUND + 39) * k, 6 + k * 30);
         }
       }
       if (this.phase === 'cinema' && this.cine.prog > 0) {
-        fx.fillStyle(0xffffff, 0.2).fillRect(W / 2 - 160, H - 42, 320, 4);
-        fx.fillStyle(0xffffff, 0.8).fillRect(W / 2 - 160, H - 42, 320 * this.cine.prog, 4);
+        fx.fillStyle(0xffffff, 0.2).fillRect(W / 2 - 160, H - 74, 320, 4);
+        fx.fillStyle(0xffffff, 0.8).fillRect(W / 2 - 160, H - 74, 320 * this.cine.prog, 4);
       }
       for (const s of this.sparks) fx.fillStyle(s.c, Math.min(1, s.life * 2)).fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
 
@@ -402,12 +402,28 @@
         person(600, 460, 1.1, { hair: 'long', face: 'R', c: 0x4a525c, a: 1 - k });
         for (let i = 0; i < 50 * k; i++) g.fillStyle(0xffffff, A * Math.random()).fillRect(570 + Math.random() * 60, 460 - Math.random() * 200 * (0.3 + k), 3, 3);
         person(300, 460, 1.1, { hair: 'short', face: 'R', c: 0x2a3038 });
-      } else if (id === 'alone') {   // 4. 지울 수 없었다. TV는 그날 이후 꺼진 적이 없다
-        room(true); tv(320, 90, 320, 190, true); sofa();
+      } else if (id === 'alone') {   // 4. 지울 수 없었다. TV는 그날 이후 꺼진 적이 없다 (무너진 생활을 보여 준다)
+        room(true); tv(320, 90, 320, 190, true);
+        g.fillStyle(0x16100c, A).fillRect(60, 80, 150, 190);                                  // 커튼을 쳐 버린 창
+        for (let i = 0; i < 6; i++) g.fillStyle(0x24180f, A).fillRect(62 + i * 25, 80, 12, 190);
+        g.fillStyle(0x0a0806, A * 0.9).fillTriangle(790, 250, 856, 250, 836, 210).fillTriangle(790, 250, 810, 210, 836, 210);   // 꺼진 스탠드
+        g.fillStyle(0x5a4a2a, A).fillCircle(160, 350, 16).fillCircle(184, 346, 12);              // 시든 화분
+        g.fillStyle(0x3a2a1a, A).fillRect(176, 330, 3, 20);
+        sofa();
+        // 소파 위에 쌓인 빨랫감과 담요
+        g.fillStyle(0x4a4a5a, A).fillRoundedRect(500, 336, 120, 30, 10);
+        g.fillStyle(0x6a5a4a, A).fillRoundedRect(560, 326, 90, 24, 8);
+        g.fillStyle(0x3a3a4a, A).fillRect(630, 344, 60, 14);
         backHead(400, 322, 'short', 1, 0);
-        g.fillStyle(0x5a4636, A).fillRoundedRect(520, 340, 90, 30, 10);                        // 비어 있는 옆자리 (눌린 쿠션)
-        for (let i = 0; i < 10; i++) { g.fillStyle([0x2a241e, 0x3a2e22, 0x4a3a2a][i % 3], A).fillRect(90 + i * 80 + hs(i) * 20, 470 + (i % 3) * 10, 30 + hs(i + 3) * 20, 18); }
-        g.fillStyle(0xd8d0c0, A).fillCircle(130, 462, 6).fillCircle(700, 466, 6);             // 쌓인 컵
+        // 바닥: 배달 용기, 빈 병, 뜯지 않은 우편물, 컵이 쌓여 있다
+        for (let i = 0; i < 22; i++) {
+          const x = 70 + hs(i) * 820, y = 404 + hs(i + 40) * 26, k = i % 4;
+          if (k === 0) { g.fillStyle(0xd8d0c0, A).fillRect(x, y, 26, 16); g.fillStyle(0xb04040, A).fillRect(x, y + 6, 26, 3); }       // 배달 용기
+          else if (k === 1) { g.fillStyle(0x3a6a4a, A * 0.9).fillRect(x, y - 18, 8, 24); g.fillRect(x + 2, y - 24, 4, 6); }           // 빈 병
+          else if (k === 2) { g.fillStyle(0xe8e2d6, A).fillRect(x, y, 22, 14); g.fillStyle(0xb04040, A).fillRect(x + 16, y + 2, 4, 4); } // 우편물(붉은 도장)
+          else { g.fillStyle(0xd8d0c0, A).fillCircle(x, y, 6); g.fillStyle(0x4a2a1a, A).fillCircle(x, y, 3); }                         // 컵
+        }
+        for (let i = 0; i < 4; i++) g.fillStyle(0x2a1e14, A).fillRect(740 + i * 6, 360 - i * 22, 70, 22);   // 쌓인 상자
         g.fillStyle(0x0a0a0c, A * 0.35).fillRect(0, 0, W, H);
       } else if (id === 'street') {  // 5. 거리에서 그녀를 봤다. 모든 밤이 겹쳐 보였다
         g.fillStyle(0x0e1226, A).fillRect(0, 0, W, 420);
@@ -421,12 +437,17 @@
         g.fillStyle(0xffe7b0, A * 0.14).fillTriangle(184, 150, 60, 420, 320, 420);
         g.fillStyle(0xffe7b0, A * 0.95).fillCircle(184, 144, 7);
         for (let i = 0; i < 6; i++) person(360 + i * 82, 470, 0.85, { hair: i % 2 ? 'long' : 'short', face: i % 2 ? 'L' : 'R', c: 0x0a0e1c, a: 0.75 });
-        person(640, 470, 0.95, { hair: 'long', face: 'L', c: 0xd8c8b0, rim: 0xffe7b0 });     // 그녀 (혼자 밝게)
+        // 그녀: 걸어가는 뒷모습 (혼자 밝게)
+        g.fillStyle(0xd8c8b0, A).fillRect(628, 420, 9, 50).fillRect(643, 420, 9, 50).fillRect(624, 360, 32, 64);
+        g.fillStyle(0x6a4a3a, A).fillCircle(640, 344, 15).fillRect(625, 342, 30, 46);              // 머리카락이 덮은 뒷머리
+        g.fillStyle(0xffe7b0, A * 0.7).fillRect(623, 360, 2, 60).fillRect(655, 360, 2, 60);
         const over = Math.min(1, Math.max(0, (t - 0.8) / 1.6));                                 // 겹쳐 보이는 소파의 밤들
+        // 같은 뒷모습 위로 소파에 앉아 TV를 보던 그녀의 뒷모습이 겹친다
         for (let k = 0; k < 3; k++) {
-          const ox = (Math.random() - 0.5) * 20 * over, a = over * 0.25;
-          g.fillStyle(0xbfe9ff, a).fillRect(320 + ox + k * 14, 90 + k * 8, 320, 190);
-          g.fillStyle(0x5a4636, a).fillRoundedRect(200 + ox, 370 + k * 6, 560, 100, 16);
+          const ox = (Math.random() - 0.5) * 16 * over, a = over * 0.28;
+          g.fillStyle(0xbfe9ff, a * 0.8).fillRect(480 + ox + k * 10, 150 + k * 6, 320, 180);           // 그때의 TV 빛
+          g.fillStyle(0x5a4636, a).fillRoundedRect(500 + ox, 392 + k * 4, 280, 70, 14);              // 소파 등받이
+          g.fillStyle(0x6a4a3a, a * 1.4).fillCircle(640 + ox, 352 + k * 3, 22).fillRoundedRect(618 + ox, 346 + k * 3, 44, 50, 10); // 앉은 뒷모습
         }
         for (let i = 0; i < 14 * over; i++) g.fillStyle(0x78e6ff, Math.random() * over).fillRect(Math.random() * W, Math.random() * H, 20 + Math.random() * 80, 2);
       }
@@ -459,7 +480,7 @@
       g.fillStyle(0x0c0f14, 1).fillRect(ox + 150, oy + 10, 140, 18);
       if (r.tv > 0) {
         g.fillStyle(0xbfe9ff, 0.8 * r.tv * (0.9 + Math.random() * 0.1)).fillRect(ox + 154, oy + 13, 132, 12);
-        g.fillStyle(0xbfe9ff, 0.10 * r.tv).fillTriangle(ox + 150, oy + 28, ox + 290, oy + 28, ox + 220, oy + 240);
+        g.fillStyle(0xbfe9ff, 0.10 * r.tv).fillPoints([{ x: ox + 196, y: oy + 28 }, { x: ox + 244, y: oy + 28 }, { x: ox + 330, y: oy + 250 }, { x: ox + 110, y: oy + 250 }], true);   // TV에서 방으로 퍼지는 빛
       }
       // 소파
       g.fillStyle(0x000000, 0.35).fillRect(ox + 124, oy + 206, 200, 50);

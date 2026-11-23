@@ -51,7 +51,7 @@
       this.resetState();
       this.mode = 'intro';
       this.showOverlay('망자의 세계', '스페이스 = 점프 · 링이 겹치는 순간 클릭 = 포착\n연타 = 흡수 · 망자를 조준해 클릭 = 발사\n\n클릭해서 추격 시작');
-      this.coach = new ME.Coach(this, H - 64);
+      this.coach = new ME.Coach(this, H - 34);
       this.bubble = { text: '', t: 0, next: 3, i: 0, hits: 0 };
       this.gBubble = this.add.graphics().setDepth(30);
       this.txtBubble = this.add.text(0, 0, '', { ...font, fontSize: '14px', fontStyle: 'bold', color: '#2a1420', align: 'center', wordWrap: { width: 240 } }).setOrigin(0.5).setDepth(31);
@@ -64,7 +64,7 @@
     resetState() {
       this.t = 0; this.scroll = 0;
       this.player = { x: 220, y: GROUND, vy: 0, onGround: true, stun: 0 };
-      this.gap = C.gapStart; this.kx = 280 + C.gapStart * 6;
+      this.gap = C.gapStart; this.kx = 280 + C.gapStart * C.gapPx;
       this.orb = { state: 'wait', timer: 1.2 };
       this.frags = 0; this.reveal = null;
       this.shots = []; this.waves = []; this.parts = [];
@@ -74,7 +74,7 @@
       this.finale = null;
     }
     retryKeepFrags() {
-      this.gap = C.gapStart; this.kx = 280 + C.gapStart * 6;
+      this.gap = C.gapStart; this.kx = 280 + C.gapStart * C.gapPx;
       this.shots = []; this.pits = []; this.debris = [];
       this.orb = { state: 'wait', timer: 1.2 };
       this.player.stun = 0;
@@ -87,11 +87,11 @@
     hideOverlay() { this.gOverlay.clear(); this.txtOverlayT.setText(''); this.txtOverlayS.setText(''); }
 
     // ---------- 계산 헬퍼 ----------
-    gunPos() { return { x: this.player.x + 24, y: this.player.y - 36 }; }
+    gunPos() { return { x: this.player.x + 39, y: this.player.y - 39 }; }
     dodgeP() { return this.kd.phase === 'dodge' ? 1 - this.kd.t / this.kd.dur : 0; }
     knightTargetX() {
       const dash = this.kd.phase === 'dodge' && this.kd.type === 'dash' ? Math.sin(Math.PI * this.dodgeP()) * 120 : 0;
-      return 280 + this.gap * 6 + dash;
+      return 280 + this.gap * C.gapPx + dash;
     }
     knightX() { return this.kx - (this.stagger > 0 ? Math.sin(this.t * 40) * 4 : 0); }
     knightLift() {
