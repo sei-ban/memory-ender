@@ -73,6 +73,7 @@
     parent: 'game',
     width: W, height: H,
     backgroundColor: '#12161d',
+    pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [TitleScene, ME.InvestigateScene, ME.ChaseScene, ME.FuneralScene],
   });

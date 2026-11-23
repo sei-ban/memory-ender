@@ -48,6 +48,8 @@
 
       this.input.on('pointerdown', p => this.onDown(p));
       this.input.on('pointerup', () => this.onUp());
+      this.coach = new ME.Coach(this, H - 40);
+      this.prompt.setVisible(false);
       ME.applyLook(this);
       this.cameras.main.fadeIn(900, 255, 255, 255);
     }
@@ -209,7 +211,7 @@
     draw() {
       const bg = this.gBg, g = this.gWorld, fx = this.gFx;
       bg.clear(); g.clear(); fx.clear(); this.gMem.clear();
-      if (this.phase === 'room') { this.gCursor.clear(); this.markText.setAlpha(0); this.drawRoom(bg); return; }
+      if (this.phase === 'room') { if (this.coach) { this.coach.set(null); this.coach.update(0); } this.gCursor.clear(); this.markText.setAlpha(0); this.drawRoom(bg); return; }
 
       const removed = this.parts.filter(q => q.state === 'off').length;
       const diss = this.phase === 'dissolve' || this.phase === 'white' ? this.diss : 0;
@@ -265,6 +267,12 @@
 
       if (this.phase === 'memory' && this.mem) this.drawMemory(this.gMem, this.mem.part.scene, this.mem.t);
       this.drawCursor();
+      // 조작 안내 (11/24 피드백)
+      let step = null;
+      if (this.phase === 'armor' && nq) { const pp = this.partPos(nq); step = { icon: 'drag', text: this.parts.filter(q => q.state === 'off').length ? '다음 빛나는 갑옷도 눌러서 끌어당기세요' : '빛나는 갑옷을 마우스로 꾹 누른 채 바깥쪽으로 끌어당기세요', target: null }; }
+      else if (this.phase === 'armor' && this.grab) step = { icon: 'drag', text: '놓지 말고 더 멀리 끌어당기세요' };
+      else if (this.phase === 'cinema' && this.cine.t > 1.2 && this.cine.prog < 1) step = { icon: 'hold', text: this.cine.holding ? '그대로 누르고 있으세요' : '빛나는 망자를 겨누고 마우스를 꾹 누르고 있으세요' };
+      this.coach.set(step); this.coach.update(this.game.loop.delta / 1000);
     }
 
     drawCursor() {
@@ -310,61 +318,115 @@
     // 정면 시점(소파 뒤에서 TV를 보는 구도). 바랜 필름 느낌: 따뜻한 톤 + 비네트 + 노이즈
     drawMemory(g, id, t) {
       const fl = 0.92 + Math.random() * 0.08; // 필름 깜빡임
-      const appear = Math.min(1, t / 0.6);
-      const tone = { sofa: 0x2e2218, fight: 0x221c20, forget: 0xcfd6dc, alone: 0x1c1a1a, street: 0x10162a }[id];
-      g.fillStyle(tone, appear).fillRect(0, 0, W, H);
-      const heads = (list, a) => { for (const [x, y, c] of list) { g.fillStyle(c || 0x14100c, a).fillCircle(x, y, 26); g.fillRect(x - 30, y + 20, 60, 50); } };
-      const tv = (x, y, w, h, on, a) => {
-        g.fillStyle(0x0a0a0c, a).fillRect(x - 8, y - 8, w + 16, h + 16);
-        if (on) {
-          g.fillStyle(0xbfe9ff, a * 0.95 * fl).fillRect(x, y, w, h);
-          g.fillStyle(0xffd28a, a * 0.8).fillRect(x, y + h * 0.62, w, h * 0.38); // 갈대밭
-          g.fillStyle(0x6b3e1f, a).fillRect(x + w * 0.45, y + h * 0.5, 30, 12);   // 화면 속 기사
-          g.fillStyle(0xe9c46a, a).fillRect(x + w * 0.5, y + h * 0.36, 8, 16);
-          for (let i = 3; i >= 1; i--) g.fillStyle(0xbfe9ff, a * 0.035).fillEllipse(x + w / 2, y + h + 40, w * (0.9 + i * 0.35), 70 + i * 50); // 방을 비추는 빛
-        } else g.fillStyle(0x16161a, a).fillRect(x, y, w, h);
+      const appear = Math.min(1, t / 0.6), A = appear;
+      const hs = ME.hash;
+      // --- 그리기 도구 ---
+      // 서 있는 사람 (옆모습/뒷모습). hair: 'short' | 'long'
+      const person = (x, y, sc, o) => {
+        const c = o.c || 0x1a1410, a = (o.a == null ? 1 : o.a) * A, f = o.face === 'L' ? -1 : 1, rim = o.rim;
+        const R = (dx, dy, w, h) => g.fillRect(x + (f < 0 ? -dx - w : dx) * sc, y + dy * sc, w * sc, h * sc);
+        g.fillStyle(c, a);
+        R(-9, -60, 7, 60); R(2, -60, 7, 60);                       // 다리
+        R(-14, -128, 28, 72);                                       // 몸
+        R(-6, -134, 12, 8);                                         // 목
+        g.fillCircle(x, y - 148 * sc, 15 * sc);                     // 머리
+        if (o.hair === 'long') { R(-17, -162, 20, 52); R(-15, -164, 30, 12); }
+        else { R(-15, -165, 30, 12); R(-16, -160, 8, 14); }
+        if (o.arm) R(12, -116, o.arm, 9);                           // 내민 팔
+        else R(10, -124, 8, 54);
+        if (rim) { g.fillStyle(rim, a * 0.8); R(13, -126, 2, 66); g.fillRect(x + f * 13 * sc, y - 160 * sc, 2 * sc, 22 * sc); }
       };
-      const sofa = (a) => { g.fillStyle(0x5a4636, a).fillRoundedRect(220, 370, 520, 120, 18); g.fillStyle(0x4a382a, a).fillRoundedRect(200, 350, 60, 140, 14).fillRoundedRect(700, 350, 60, 140, 14); };
+      // 소파에 앉은 뒷모습 (머리 + 어깨)
+      const backHead = (x, y, hair, a2, lean) => {
+        const a = A * (a2 == null ? 1 : a2), L = lean || 0;
+        g.fillStyle(0x16100c, a).fillRoundedRect(x - 34, y + 14, 68, 60, 14);   // 어깨
+        g.fillStyle(0x1c140f, a).fillCircle(x + L, y, 25);
+        if (hair === 'long') { g.fillRoundedRect(x - 26 + L, y - 6, 52, 56, 12); g.fillStyle(0x2a1e16, a).fillRect(x - 14 + L, y - 22, 10, 30); }
+        else g.fillStyle(0x2a1e16, a).fillRect(x - 18 + L, y - 24, 22, 8);
+        g.fillStyle(0xbfe9ff, a * 0.35).fillRect(x - 25 + L, y - 4, 3, 22).fillRect(x + 22 + L, y - 4, 3, 22);   // TV 빛 테두리
+      };
+      // TV: 화면 속에서 기사가 노을 갈대밭을 달린다
+      const tv = (x, y, w, h, on) => {
+        g.fillStyle(0x0a0a0c, A).fillRect(x - 10, y - 10, w + 20, h + 20);
+        g.fillStyle(0x1a1a20, A).fillRect(x + w / 2 - 30, y + h + 10, 60, 14);
+        if (!on) { g.fillStyle(0x16161a, A).fillRect(x, y, w, h); g.fillStyle(0xffffff, A * 0.05).fillRect(x + 10, y + 8, w * 0.3, h * 0.2); return; }
+        const bands = [0x6a3a5a, 0xb0607a, 0xf0906a, 0xffd38a];
+        bands.forEach((c, i) => g.fillStyle(c, A * fl).fillRect(x, y + i * h * 0.15, w, h * 0.15 + 1));
+        g.fillStyle(0xfff0cf, A * fl).fillCircle(x + w * 0.72, y + h * 0.52, h * 0.12);
+        g.fillStyle(0x7a3a5a, A).fillTriangle(x, y + h * 0.7, x + w * 0.35, y + h * 0.48, x + w * 0.7, y + h * 0.7).fillTriangle(x + w * 0.4, y + h * 0.7, x + w * 0.8, y + h * 0.5, x + w, y + h * 0.7);
+        g.fillStyle(0x3a1428, A).fillRect(x, y + h * 0.7, w, h * 0.3);
+        for (let i = 0; i < 18; i++) { const rx = x + ((i * 37 + t * 60) % w); g.fillRect(rx, y + h * 0.58, 2, h * 0.14); }
+        ME.drawKnight(g, x + w * 0.42 + Math.sin(t * 2) * 6, y + h * 0.9, h / 520, { leg: Math.sin(t * 14) * 8 });
+        g.fillStyle(0xffffff, A * 0.06).fillRect(x, y + ((t * 80) % h), w, 3);     // 주사선
+        for (let i = 3; i >= 1; i--) g.fillStyle(0xbfe9ff, A * 0.035).fillEllipse(x + w / 2, y + h + 60, w * (0.9 + i * 0.4), 80 + i * 60);
+      };
+      const room = (dark) => {
+        g.fillStyle(0x2a1e18, A).fillRect(0, 0, W, 420);
+        for (let x = 0; x < W; x += 48) g.fillStyle(0x31241c, A).fillRect(x, 0, 24, 420);          // 벽지 줄무늬
+        g.fillStyle(0x1e1612, A).fillRect(0, 410, W, 130);                                        // 바닥
+        g.fillStyle(0x3a2a20, A).fillRect(0, 410, W, 4);
+        // 창문 (밤의 도시)
+        g.fillStyle(0x0e1424, A).fillRect(60, 80, 150, 190); g.fillStyle(0x2a1e18, A).fillRect(132, 80, 6, 190).fillRect(60, 172, 150, 6);
+        for (let i = 0; i < 14; i++) g.fillStyle([0xffd28a, 0x7fe6ff, 0xff4fa3][i % 3], A * 0.7).fillRect(70 + hs(i) * 130, 120 + hs(i + 9) * 140, 4, 4);
+        // 스탠드
+        g.fillStyle(0x1a1410, A).fillRect(820, 250, 6, 160).fillRect(800, 404, 46, 6);
+        g.fillStyle(0xd8b070, A).fillTriangle(790, 250, 856, 250, 836, 210).fillTriangle(790, 250, 810, 210, 836, 210);
+        if (!dark) for (let i = 3; i >= 1; i--) g.fillStyle(0xffd28a, A * 0.05).fillCircle(823, 260, 40 * i);
+        // 화분
+        g.fillStyle(0x3a2a20, A).fillRect(150, 370, 40, 40); g.fillStyle(0x2a4a34, A).fillCircle(160, 350, 22).fillCircle(184, 342, 20).fillCircle(170, 324, 18);
+      };
+      const sofa = () => {
+        g.fillStyle(0x3a2c22, A).fillRoundedRect(200, 370, 560, 130, 16);
+        g.fillStyle(0x4a382a, A).fillRoundedRect(220, 350, 250, 70, 12).fillRoundedRect(490, 350, 250, 70, 12);   // 등받이 쿠션
+        g.fillStyle(0x2e2218, A).fillRoundedRect(180, 340, 60, 160, 14).fillRoundedRect(720, 340, 60, 160, 14);
+        g.fillStyle(0x6a5242, A * 0.6).fillRect(230, 352, 230, 3).fillRect(500, 352, 230, 3);
+      };
 
       if (id === 'sofa') {           // 1. 매일 밤, 같은 소파에서 같은 기사를 응원
-        tv(330, 90, 300, 180, true, appear); sofa(appear);
-        heads([[400, 330], [560, 330]], appear);
-        g.fillStyle(0xffe7b0, appear * 0.5).fillCircle(560 + Math.sin(t * 3) * 2, 300, 5); // 그녀의 웃음(작은 빛)
+        room(false); tv(320, 90, 320, 190, true); sofa();
+        backHead(400, 318, 'short', 1, 0); backHead(560, 318, 'long', 1, -4 + Math.sin(t * 3) * 2);
+        g.fillStyle(0xffe7b0, A * (0.4 + Math.sin(t * 5) * 0.3)).fillRect(590, 280, 4, 4).fillRect(600, 270, 3, 3);   // 웃음소리 반짝임
       } else if (id === 'fight') {   // 2. 처음으로 TV를 끄고 싸웠다
-        tv(330, 90, 300, 180, false, appear);
-        g.fillStyle(0x3a2e26, appear).fillRect(380, 380, 200, 40);                 // 탁자
-        g.fillStyle(0xe8e2d6, appear).fillRect(455, 368, 50, 14);                  // 통지서
-        g.fillStyle(0xb04040, appear).fillCircle(495, 375, 3);
-        g.fillStyle(0x14100c, appear).fillCircle(250, 250, 24).fillRect(226, 270, 48, 140); // 그
-        g.fillStyle(0x14100c, appear).fillCircle(710, 245, 24).fillRect(686, 265, 48, 145); // 그녀
-        g.fillRect(660, 300, 30, 8);                                                   // 내민 손
-        g.fillStyle(0xb04040, 0.12 + Math.sin(t * 6) * 0.06).fillRect(0, 0, W, H);    // 긴장
+        room(true); tv(320, 90, 320, 190, false);
+        g.fillStyle(0x3a2c22, A).fillRect(380, 392, 200, 18); g.fillStyle(0x241a14, A).fillRect(390, 410, 8, 30).fillRect(562, 410, 8, 30);   // 탁자
+        g.fillStyle(0xe8e2d6, A).fillRect(450, 380, 56, 14); g.fillStyle(0x8a8478, A).fillRect(456, 384, 36, 2).fillRect(456, 388, 30, 2);
+        g.fillStyle(0xb04040, A).fillCircle(498, 389, 3);                                  // 통지서
+        person(250, 480, 1.5, { hair: 'short', face: 'R', c: 0x1a1410 });
+        person(710, 480, 1.5, { hair: 'long', face: 'L', c: 0x1a1410, arm: 34 });
+        g.fillStyle(0xb04040, 0.10 + Math.sin(t * 6) * 0.05).fillRect(0, 0, W, H);       // 긴장
       } else if (id === 'forget') {  // 3. 끝내자는 말도 못 한 채, 그녀의 기억에서 사라졌다
         const k = Math.min(1, t / 3.5);
-        g.fillStyle(0xffffff, appear * 0.6).fillEllipse(W / 2, 60, 500, 160);       // 차가운 장례 시설 빛
-        g.fillStyle(0x2a2f36, appear * (1 - k)).fillCircle(560, 230, 24).fillRect(536, 250, 48, 150); // 뒤돌아선 그녀
-        for (let i = 0; i < 40 * k; i++) g.fillStyle(0xffffff, appear * Math.random()).fillRect(530 + Math.random() * 60, 380 - Math.random() * 260 * k, 3, 3); // 흩어지는 기억
-        g.fillStyle(0x2a2f36, appear).fillCircle(300, 250, 22).fillRect(278, 270, 44, 135); // 그
-        // (11/22 피드백: 손 뻗기 제거 — 그는 그대로 서 있고 그녀만 사라진다)
+        g.fillStyle(0xd8dde4, A).fillRect(0, 0, W, 400); g.fillStyle(0xb8c0ca, A).fillRect(0, 400, W, 140);
+        for (let x = 0; x < W; x += 80) g.fillStyle(0xa8b0ba, A).fillRect(x, 400, 2, 140);
+        for (let i = 0; i < 3; i++) { g.fillStyle(0xffffff, A).fillRect(180 + i * 260, 30, 160, 10); g.fillStyle(0xffffff, A * 0.12).fillTriangle(180 + i * 260, 40, 340 + i * 260, 40, 260 + i * 260, 400); }
+        person(600, 460, 1.1, { hair: 'long', face: 'R', c: 0x4a525c, a: 1 - k });
+        for (let i = 0; i < 50 * k; i++) g.fillStyle(0xffffff, A * Math.random()).fillRect(570 + Math.random() * 60, 460 - Math.random() * 200 * (0.3 + k), 3, 3);
+        person(300, 460, 1.1, { hair: 'short', face: 'R', c: 0x2a3038 });
       } else if (id === 'alone') {   // 4. 지울 수 없었다. TV는 그날 이후 꺼진 적이 없다
-        tv(330, 90, 300, 180, true, appear); sofa(appear);
-        heads([[400, 335]], appear);
-        g.fillStyle(0x3a2e26, appear).fillRoundedRect(520, 320, 80, 34, 10);          // 비어 있는 옆자리(눌린 쿠션)
-        for (let i = 0; i < 9; i++) g.fillStyle(0x2a241e, appear).fillRect(150 + i * 75, 500 + (i % 3) * 8, 26, 14); // 쌓인 물건
-        g.fillStyle(0x0a0a0c, appear * 0.35).fillRect(0, 0, W, H);                      // 더 어두운 방
+        room(true); tv(320, 90, 320, 190, true); sofa();
+        backHead(400, 322, 'short', 1, 0);
+        g.fillStyle(0x5a4636, A).fillRoundedRect(520, 340, 90, 30, 10);                        // 비어 있는 옆자리 (눌린 쿠션)
+        for (let i = 0; i < 10; i++) { g.fillStyle([0x2a241e, 0x3a2e22, 0x4a3a2a][i % 3], A).fillRect(90 + i * 80 + hs(i) * 20, 470 + (i % 3) * 10, 30 + hs(i + 3) * 20, 18); }
+        g.fillStyle(0xd8d0c0, A).fillCircle(130, 462, 6).fillCircle(700, 466, 6);             // 쌓인 컵
+        g.fillStyle(0x0a0a0c, A * 0.35).fillRect(0, 0, W, H);
       } else if (id === 'street') {  // 5. 거리에서 그녀를 봤다. 모든 밤이 겹쳐 보였다
-        g.fillStyle(0x1e2640, appear).fillRect(0, 420, W, 120);
-        g.fillStyle(0x30384e, appear).fillRect(180, 120, 8, 300);                          // 가로등
-        g.fillStyle(0xffe7b0, appear * 0.12).fillTriangle(184, 130, 60, 420, 320, 420);
-        g.fillStyle(0xffe7b0, appear * 0.9).fillCircle(184, 126, 7);
-        for (let i = 0; i < 6; i++) g.fillStyle(0x0c1020, appear * 0.6).fillCircle(380 + i * 80, 300, 14).fillRect(368 + i * 80, 312, 24, 100); // 행인
-        g.fillStyle(0xd8c8b0, appear).fillCircle(620, 290, 16).fillRect(604, 304, 32, 110);  // 그녀 (혼자 밝게)
-        // 겹쳐 보이는 소파의 밤들 (어긋난 잔상 + 글리치)
-        const over = Math.min(1, Math.max(0, (t - 0.8) / 1.6));
+        g.fillStyle(0x0e1226, A).fillRect(0, 0, W, 420);
+        for (let i = 0; i < 9; i++) {                                                             // 건물과 창문
+          const bx = i * 110 - 20, bh = 160 + hs(i) * 200;
+          g.fillStyle(0x161c34, A).fillRect(bx, 420 - bh, 96, bh);
+          for (let r = 0; r < 8; r++) for (let c2 = 0; c2 < 3; c2++) if (hs(i * 31 + r * 7 + c2) > 0.55) g.fillStyle(0xffd28a, A * 0.6).fillRect(bx + 14 + c2 * 26, 440 - bh + r * 22, 10, 8);
+        }
+        g.fillStyle(0x1e2640, A).fillRect(0, 420, W, 120);
+        g.fillStyle(0x30384e, A).fillRect(180, 140, 8, 280);                                   // 가로등
+        g.fillStyle(0xffe7b0, A * 0.14).fillTriangle(184, 150, 60, 420, 320, 420);
+        g.fillStyle(0xffe7b0, A * 0.95).fillCircle(184, 144, 7);
+        for (let i = 0; i < 6; i++) person(360 + i * 82, 470, 0.85, { hair: i % 2 ? 'long' : 'short', face: i % 2 ? 'L' : 'R', c: 0x0a0e1c, a: 0.75 });
+        person(640, 470, 0.95, { hair: 'long', face: 'L', c: 0xd8c8b0, rim: 0xffe7b0 });     // 그녀 (혼자 밝게)
+        const over = Math.min(1, Math.max(0, (t - 0.8) / 1.6));                                 // 겹쳐 보이는 소파의 밤들
         for (let k = 0; k < 3; k++) {
-          const ox = (Math.random() - 0.5) * 20 * over, a = over * 0.3;
-          g.fillStyle(0xbfe9ff, a).fillRect(330 + ox + k * 14, 90 + k * 8, 300, 180);
-          g.fillStyle(0x5a4636, a).fillRoundedRect(220 + ox, 370 + k * 6, 520, 90, 18);
+          const ox = (Math.random() - 0.5) * 20 * over, a = over * 0.25;
+          g.fillStyle(0xbfe9ff, a).fillRect(320 + ox + k * 14, 90 + k * 8, 320, 190);
+          g.fillStyle(0x5a4636, a).fillRoundedRect(200 + ox, 370 + k * 6, 560, 100, 16);
         }
         for (let i = 0; i < 14 * over; i++) g.fillStyle(0x78e6ff, Math.random() * over).fillRect(Math.random() * W, Math.random() * H, 20 + Math.random() * 80, 2);
       }

@@ -52,6 +52,9 @@
       this.tvProg = 0;
       this.phase = 'intro';
       this.openPanel(T.intro, null);
+      this.coach = new ME.Coach(this, H - 100);
+      this.tut = { stage: 0, moved: 0, lastX: this.player.x, lastY: this.player.y, aimT: 0 };
+      this.txtHint.setPosition(W / 2, 54);
       ME.applyLook(this);
       this.cameras.main.fadeIn(500, 0, 0, 0);
     }
@@ -269,7 +272,27 @@
       }
       m.clicked = false;
       this.updateFx(dt);
+      this.updateCoach(dt);
       this.draw();
+    }
+    // 처음 하는 사람을 위한 단계별 조작 안내 (11/24 피드백: 무엇을 해야 할지 모르겠다)
+    updateCoach(dt) {
+      const tu = this.tut, p = this.player, c = this.coach;
+      tu.moved += Math.hypot(p.x - tu.lastX, p.y - tu.lastY); tu.lastX = p.x; tu.lastY = p.y;
+      const found = this.clues.filter(q => q.found).length;
+      let step = null;
+      if (this.phase === 'explore') {
+        if (tu.stage === 0 && tu.moved > 90) tu.stage = 1;
+        if (tu.stage === 1) { tu.aimT += dt; if (this.signal() > 0.5 || tu.aimT > 6) tu.stage = 2; }
+        if (tu.stage === 2 && found > 0) tu.stage = 3;
+        if (tu.stage === 0) step = { icon: 'keys', text: 'WASD 또는 방향키로 방 안을 걸어 보세요' };
+        else if (tu.stage === 1) step = { icon: 'aim', text: '마우스로 조등을 겨눠 보세요. 신호 막대가 차오르는 쪽에 흔적이 있습니다', target: { x: 136, y: H - 36, r: 20 } };
+        else if (tu.stage === 2) step = { icon: 'hold', text: this.mouse.down ? '그대로 누르고 있으세요. 흔적에 빛이 닿으면 원이 채워집니다' : '신호가 강한 쪽을 겨누고 마우스 왼쪽 버튼을 꾹 누르고 있으세요' };
+      } else if (this.phase === 'open') {
+        const tv = FURNITURE[0];
+        step = { icon: 'hold', text: 'TV 가까이 가서 TV를 겨누고 마우스를 꾹 눌러 출입구를 여세요', target: { x: tv.x + tv.w / 2, y: tv.y + tv.h / 2, r: 60 } };
+      }
+      c.set(step); c.update(dt);
     }
     openDeduction() {
       this.phase = 'deduce';

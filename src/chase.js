@@ -51,6 +51,11 @@
       this.resetState();
       this.mode = 'intro';
       this.showOverlay('망자의 세계', '스페이스 = 점프 · 링이 겹치는 순간 클릭 = 포착\n연타 = 흡수 · 망자를 조준해 클릭 = 발사\n\n클릭해서 추격 시작');
+      this.coach = new ME.Coach(this, H - 64);
+      this.bubble = { text: '', t: 0, next: 3, i: 0, hits: 0 };
+      this.gBubble = this.add.graphics().setDepth(30);
+      this.txtBubble = this.add.text(0, 0, '', { ...font, fontSize: '14px', fontStyle: 'bold', color: '#2a1420', align: 'center', wordWrap: { width: 240 } }).setOrigin(0.5).setDepth(31);
+      this.learned = { capture: false, absorb: false, fire: false, jumps: 0 };
       ME.applyLook(this);
       this.cameras.main.fadeIn(600, 255, 255, 255);
     }
@@ -236,6 +241,40 @@
       }
     }
 
+    // 조작 안내: 처음 한 번 성공할 때까지 상황마다 보여 준다 (11/24 피드백)
+    updateCoach() {
+      const L = this.learned, o = this.orb, c = this.coach;
+      if (o.state === 'absorb') L.capture = true;
+      if (o.state === 'charged') L.absorb = true;
+      if (this.frags >= 1) L.fire = true;
+      let step = null;
+      const hazard = this.pits.some(pt => pt.x > this.player.x - 20 && pt.x < this.player.x + 260) || this.debris.some(d => d.x > this.player.x && d.x < this.player.x + 300);
+      if (this.mode !== 'play' || this.finale) step = this.finale && !this.finale.done ? { icon: 'hold', text: '망자를 겨누고 마우스를 꾹 누른 채 버티세요', target: { x: this.knightX(), y: this.knightY() - 70, r: 70 } } : null;
+      else if (hazard && L.jumps < 2) step = { icon: 'space', text: '앞에 함정! 스페이스로 뛰어넘으세요' };
+      else if (o.state === 'offer' && !L.capture) step = { icon: 'click', text: '빛 구슬의 바깥 링이 줄어들어 겹치는 순간 클릭', target: { x: o.x, y: o.y, r: 34 } };
+      else if (o.state === 'absorb' && !L.absorb) step = { icon: 'mash', text: '마우스를 빠르게 연타해서 기억을 빨아들이세요' };
+      else if (o.state === 'charged' && !L.fire) step = { icon: 'click', text: '망자를 겨누고 클릭해서 기억을 쏘세요', target: { x: this.knightX(), y: this.knightY() - 70, r: 60 } };
+      c.set(step); c.update(this.game.loop.delta / 1000);
+    }
+
+    // 망자의 말풍선: 기사 흉내 대사, 주마등을 맞히면 흉내가 깨진다
+    say(text) { this.bubble.text = text; this.bubble.t = ME.KNIGHT_LINES.show; }
+    updateBubble() {
+      const B = this.bubble, KL = ME.KNIGHT_LINES, dt = this.mode === 'play' ? this.game.loop.delta / 1000 : 0;
+      if (this.frags > B.hits) { B.hits = this.frags; const l = KL.hit[this.frags - 1]; if (l) { this.say(l); B.next = KL.every; } }
+      if (this.mode === 'play' && !this.finale && KL.run.length) { B.next -= dt; if (B.next <= 0 && B.t <= 0) { this.say(KL.run[B.i++ % KL.run.length]); B.next = KL.every; } }
+      B.t -= dt;
+      const g = this.gBubble; g.clear();
+      if (B.t <= 0 || !B.text) { this.txtBubble.setText(''); return; }
+      const x = this.knightX(), y = this.knightY() - 175;
+      this.txtBubble.setText(B.text).setPosition(x, y);
+      const w = this.txtBubble.width + 24, h = this.txtBubble.height + 16, a = Math.min(1, B.t * 4);
+      g.fillStyle(0xfff6e4, 0.95 * a).fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.fillTriangle(x - 8, y + h / 2 - 1, x + 8, y + h / 2 - 1, x - 2, y + h / 2 + 12);
+      g.lineStyle(2, 0x5a2440, a).strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      this.txtBubble.setAlpha(a);
+    }
+
     // ---------- 메인 루프 ----------
     update(time, deltaMs) {
       let dt = Math.min(0.05, deltaMs / 1000);
@@ -264,7 +303,7 @@
       const speed = C.runSpeed * (p.stun > 0 ? 0.5 : 1);
       this.scroll += speed * dt;
 
-      if (jump && p.onGround && dt > 0) { p.vy = -C.jumpVelocity; p.onGround = false; ME.sfx.play('jump'); }
+      if (jump && p.onGround && dt > 0) { p.vy = -C.jumpVelocity; p.onGround = false; ME.sfx.play('jump'); if (this.learned) this.learned.jumps++; }
       p.vy += C.gravity * dt; p.y += p.vy * dt;
       if (p.y >= GROUND) { p.y = GROUND; p.vy = 0; p.onGround = true; }
       if (p.stun > 0) p.stun -= dt;
@@ -318,7 +357,7 @@
         ME.bandSky(c, 0, 0, W, 360, [[0, '#3b2a4a'], [0.35, '#a8506a'], [0.65, '#f08a5a'], [1, '#ffd38a']], 14);
         // 해: 동심원 띠
         [[120, 'rgba(255,214,150,0.18)'], [96, 'rgba(255,224,170,0.28)'], [74, 'rgba(255,236,196,0.55)'], [58, '#fff0cf']].forEach(([r, col]) => {
-          c.fillStyle = col; c.beginPath(); c.arc(700, 250, r, 0, Math.PI * 2); c.fill();
+          c.fillStyle = col; c.beginPath(); c.arc(300, 250, r, 0, Math.PI * 2); c.fill();
         });
         // 가로로 지나가는 구름 띠
         c.fillStyle = 'rgba(90,40,70,0.55)';
@@ -500,10 +539,9 @@
       h.fillStyle(0x141820, 0.55).fillRect(W - 190, 20, 170, 40);
       for (let i = 0; i < C.fragMax; i++) h.fillStyle(i < this.frags ? COL.memory : 0xffffff, i < this.frags ? 1 : 0.18).fillCircle(W - 120 + i * 20, 40, 6);
       // 충전 안내
-      if (this.orb.state === 'charged') {
-        h.fillStyle(0x141820, 0.6).fillRect(W / 2 - 160, H - 70, 320, 34);
-        this.txtHint.setText('기억 흡수 완료 — 망자를 조준해 발사');
-      } else this.txtHint.setText('');
+      this.txtHint.setText('');
+      this.updateCoach();
+      this.updateBubble();
       // 마지막 붙잡기
       const F = this.finale;
       this.txtCenter.setText('');
@@ -511,7 +549,7 @@
         h.fillStyle(0x28140a, Math.min(0.35, F.t * 0.2)).fillRect(0, 0, W, H);
         if (F.t > 0.5) {
           this.txtCenter.setAlpha(Math.min(1, (F.t - 0.5) * 1.5));
-          this.txtCenter.setText(F.done > 0 ? '망자를 붙잡았다' : (F.pull ? '끌어당기는 중 — 놓지 마세요' : '망자에 조준을 올리고 마우스를 누르고 있으세요'));
+          this.txtCenter.setText(F.done > 0 ? '망자를 붙잡았다' : (F.pull ? '끌어당기는 중, 놓지 마세요' : ''));
           if (!F.done) {
             const kx = this.knightX(), ky = this.knightY() - 60;
             h.lineStyle(2, F.pull ? 0x78e6ff : 0xffffff, F.pull ? 0.9 : 0.5 + Math.sin(this.t * 6) * 0.3).strokeRect(kx - 70, ky - 80, 140, 160);

@@ -78,6 +78,16 @@ ME.FRAGMENTS = [
   '그날, 왜 아무 말도 못 했을까.',
 ];
 
+// 추격 중 망자의 말풍선 (11/24 아이디어: 기사 흉내로 현실에서 도피하는 모습)
+// run: 도망치는 동안 번갈아 말하는 기사 흉내 대사. hit[i]: i번째 주마등을 맞혔을 때(흉내가 깨지는 말)
+// 비워 두면 말풍선이 나오지 않는다
+ME.KNIGHT_LINES = {
+  run: [],
+  hit: [],
+  every: 6.0,      // 도주 대사 간격(초)
+  show: 2.4,       // 말풍선 표시 시간(초)
+};
+
 ME.COLORS = {
   intruder: 0x5d6f85, intruderHead: 0x93a7bd, intruderLine: 0x78e6ff,
   wave: 0x78e6ff, waveSoft: 0xaaf0ff,
