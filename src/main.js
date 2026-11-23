@@ -40,6 +40,10 @@
       });
       this.add.text(W / 2, H - 24, '플레이 중 Esc = 타이틀로', { ...font, fontSize: '11px', color: '#9a7a8a' }).setOrigin(0.5);
       }
+      // 포트폴리오 사이트로 돌아가기 (같은 탭에서 열었을 때를 위해)
+      const back = this.add.text(20, 18, '포트폴리오 사이트로', { ...font, fontSize: '13px', color: '#f0d8c8', backgroundColor: '#3a1428', padding: { x: 10, y: 5 } }).setInteractive({ useHandCursor: true });
+      back.on('pointerover', () => back.setColor('#ffffff')).on('pointerout', () => back.setColor('#f0d8c8'));
+      back.on('pointerdown', () => { window.location.href = 'https://kim-junhyeon.github.io/'; });
       ME.applyLook(this);
       this.cameras.main.fadeIn(600, 0, 0, 0);
     }
