@@ -14,6 +14,8 @@
       this.events.once('shutdown', () => { ME.sfx.bgmStop(); ME.sfx.pullOff(); });
       this.makeBackground();
       this.bg = this.add.image(0, 0, 'chase-bg').setOrigin(0);
+      this.hills = [['ch-hill1', 0.05], ['ch-hill2', 0.12], ['ch-hill3', 0.22]].map(([k, par]) => ({ s: this.add.tileSprite(0, 0, W, H, k).setOrigin(0), par }));
+      this.dust = Array.from({ length: 40 }, (_, i) => ({ x: Math.random() * W, y: Math.random() * 400, v: 10 + Math.random() * 30, ph: Math.random() * 6, z: Math.random() }));
       this.gFar = this.add.graphics();
       this.gWorld = this.add.graphics();
       this.knightG = this.add.graphics();
@@ -49,6 +51,7 @@
       this.resetState();
       this.mode = 'intro';
       this.showOverlay('망자의 세계', '스페이스 = 점프 · 링이 겹치는 순간 클릭 = 포착\n연타 = 흡수 · 망자를 조준해 클릭 = 발사\n\n클릭해서 추격 시작');
+      ME.applyLook(this);
       this.cameras.main.fadeIn(600, 255, 255, 255);
     }
 
@@ -310,13 +313,40 @@
 
     // ---------- 그리기 ----------
     makeBackground() {
-      if (this.textures.exists('chase-bg')) return;
-      const tex = this.textures.createCanvas('chase-bg', W, H), c = tex.getContext();
-      const g = c.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#f7d08a'); g.addColorStop(0.55, '#f0a466'); g.addColorStop(1, '#c9703f');
-      c.fillStyle = g; c.fillRect(0, 0, W, H);
-      c.fillStyle = 'rgba(255,240,200,0.55)'; c.beginPath(); c.arc(700, 150, 70, 0, Math.PI * 2); c.fill();
-      tex.refresh();
+      if (!this.textures.exists('chase-bg')) {
+        const tex = this.textures.createCanvas('chase-bg', W, H), c = tex.getContext();
+        ME.bandSky(c, 0, 0, W, 360, [[0, '#3b2a4a'], [0.35, '#a8506a'], [0.65, '#f08a5a'], [1, '#ffd38a']], 14);
+        // 해: 동심원 띠
+        [[120, 'rgba(255,214,150,0.18)'], [96, 'rgba(255,224,170,0.28)'], [74, 'rgba(255,236,196,0.55)'], [58, '#fff0cf']].forEach(([r, col]) => {
+          c.fillStyle = col; c.beginPath(); c.arc(700, 250, r, 0, Math.PI * 2); c.fill();
+        });
+        // 가로로 지나가는 구름 띠
+        c.fillStyle = 'rgba(90,40,70,0.55)';
+        [[80, 230, 520, 6], [430, 210, 360, 4], [610, 268, 300, 6], [150, 120, 280, 4], [520, 96, 380, 6]].forEach(([x, y, w, h]) => {
+          c.fillRect(x, y, w, h); c.fillRect(x + 30, y - 4, w * 0.5, 4);
+        });
+        c.fillStyle = 'rgba(255,220,180,0.35)';
+        [[100, 236, 460, 2], [640, 274, 240, 2], [540, 102, 300, 2]].forEach(([x, y, w, h]) => c.fillRect(x, y, w, h));
+        c.fillStyle = '#ffd38a'; c.fillRect(0, 360, W, H - 360);
+        tex.refresh();
+      }
+      // 반복되는 능선 3겹 (가로로 이어지게 주기를 폭에 맞춤)
+      const layer = (key, w, baseY, amp, k, seed, color, jag) => {
+        if (this.textures.exists(key)) return;
+        const t = this.textures.createCanvas(key, w, H), c = t.getContext();
+        c.fillStyle = color; c.beginPath(); c.moveTo(0, H);
+        for (let x = 0; x <= w; x += 4) {
+          const f = Math.PI * 2 * x / w;
+          const y = baseY - amp * (0.55 + 0.3 * Math.sin(f * k + seed) + 0.15 * Math.sin(f * k * 3 + seed * 2))
+            - (jag ? ME.hash(Math.floor(x / 8) % (w / 8) + seed) * jag : 0);
+          c.lineTo(x, Math.round(y / 2) * 2);
+        }
+        c.lineTo(w, H); c.closePath(); c.fill();
+        t.refresh();
+      };
+      layer('ch-hill1', 1920, 330, 120, 3, 1.3, '#b8607a', 0);
+      layer('ch-hill2', 1920, 370, 90, 5, 4.1, '#7a3a5a', 6);
+      layer('ch-hill3', 1920, 405, 60, 7, 2.2, '#4a2038', 10);
     }
     drawReeds(g, par, baseY, step, color, alpha, hMax) {
       const off = (this.scroll * par) % step;
@@ -328,16 +358,30 @@
         const sway = Math.sin(this.t * 1.6 + x * 0.05) * 6;
         g.beginPath(); g.moveTo(xx, baseY); g.lineTo(xx + sway * 0.5, baseY - h * 0.5); g.lineTo(xx + sway, baseY - h); g.strokePath();
         g.fillEllipse(xx + sway, baseY - h - 6, 6, 18);
+        if (alpha > 0.95) { g.fillStyle(0xff9a6a, 0.5).fillRect(xx + sway + 1, baseY - h - 12, 2, 8); g.fillStyle(color, alpha); }
       }
     }
     draw() {
       const g = this.gWorld, fx = this.gFx, far = this.gFar;
       far.clear(); g.clear(); fx.clear();
-      this.drawReeds(far, 0.25, 330, 26, COL.reedFar, 0.35, 60);
-      this.drawReeds(far, 0.6, GROUND + 10, 18, COL.reedNear, 0.55, 90);
-      // 땅·구덩이
-      g.fillStyle(COL.ground, 1).fillRect(0, GROUND, W, H - GROUND);
-      g.fillStyle(0xffdc96, 0.25).fillRect(0, GROUND, W, 3);
+      for (const h of this.hills) h.s.tilePositionX = this.scroll * h.par;
+      this.drawReeds(far, 0.3, 412, 22, 0x5a2440, 0.9, 50);
+      this.drawReeds(far, 0.6, GROUND + 6, 14, 0x3a1428, 1, 92);
+      // 땅: 짙은 흙 + 위쪽 노을 반사 + 흙 무늬
+      g.fillStyle(0x2a0f1e, 1).fillRect(0, GROUND, W, H - GROUND);
+      g.fillStyle(0xff9a6a, 0.55).fillRect(0, GROUND, W, 2);
+      g.fillStyle(0x4a1c30, 1);
+      { const off = this.scroll % 64;
+        for (let x = -64; x < W + 64; x += 64) for (let r = 0; r < 4; r++) {
+          const hx = ME.hash(Math.floor((x + this.scroll - off) / 64) * 7 + r);
+          g.fillRect(Math.round(x - off + hx * 50), GROUND + 12 + r * 22, 10 + hx * 18, 2);
+        } }
+      // 떠다니는 먼지(빛 알갱이)
+      for (const d of this.dust) {
+        const dx = ((d.x - this.scroll * (0.2 + d.z * 0.5) - this.t * d.v) % W + W) % W;
+        const dy = d.y + Math.sin(this.t + d.ph) * 8;
+        far.fillStyle(0xffe6b0, 0.25 + d.z * 0.45).fillRect(Math.round(dx), Math.round(dy), d.z > 0.6 ? 3 : 2, d.z > 0.6 ? 3 : 2);
+      }
       for (const pt of this.pits) {
         if (pt.open) {
           g.fillStyle(COL.pit, 1).fillRect(pt.x, GROUND, pt.w, H - GROUND);
@@ -380,13 +424,7 @@
     drawPlayer() {
       const p = this.player, pg = this.playerG; pg.clear();
       pg.setPosition(p.x, p.y).setAlpha(p.stun > 0 && Math.floor(p.stun * 20) % 2 === 0 ? 0.45 : 1);
-      // 침입자: 현실의 차가운 색 그대로
-      pg.fillStyle(COL.intruder, 1).fillRect(-12, -54, 24, 54);
-      pg.fillStyle(COL.intruderHead, 1).fillCircle(0, -64, 10);
-      pg.lineStyle(1.5, COL.intruderLine, 0.9).strokeRect(-12, -54, 24, 54);
-      // 조등
-      pg.fillStyle(0x2b3442, 1).fillRect(8, -41, 20, 8).fillRect(10, -35, 5, 9);
-      pg.fillStyle(0x7fe6ff, 1).fillRect(26, -40, 3, 6);
+      ME.drawUndertaker(pg, 0, 0, { run: p.onGround ? Math.sin(this.t * 16) : 0.6 });
     }
     drawOrb(fx) {
       const o = this.orb;

@@ -28,6 +28,10 @@
       this.reeds = [];
       for (let i = 0; i < 70; i++) this.reeds.push({ x: Math.random() * W, h: 60 + Math.random() * 90, ph: Math.random() * 6, near: Math.random() < 0.5, gone: Math.random() });
 
+      this.cameras.main.setBackgroundColor('#fff3dc');
+      ME.ChaseScene.prototype.makeBackground.call(this);
+      this.sky = this.add.image(0, 0, 'chase-bg').setOrigin(0);
+      this.hills = ['ch-hill1', 'ch-hill2', 'ch-hill3'].map((k, i) => this.add.tileSprite(0, 0, W, H, k).setOrigin(0).setTilePosition(300 + i * 200, 0));
       this.gBg = this.add.graphics();
       this.gWorld = this.add.graphics();
       this.gFx = this.add.graphics();
@@ -44,6 +48,7 @@
 
       this.input.on('pointerdown', p => this.onDown(p));
       this.input.on('pointerup', () => this.onUp());
+      ME.applyLook(this);
       this.cameras.main.fadeIn(900, 255, 255, 255);
     }
 
@@ -210,21 +215,21 @@
       const diss = this.phase === 'dissolve' || this.phase === 'white' ? this.diss : 0;
       const fade = 1 - (removed / this.parts.length) * 0.75;
       // 하늘·땅
-      bg.fillStyle(0xfff3dc, 1).fillRect(0, 0, W, H);
-      bg.fillStyle(0xf3b46a, 0.85 * fade * (1 - diss)).fillRect(0, 0, W, GROUND);
-      bg.fillStyle(0xffd9a0, 0.6 * fade * (1 - diss)).fillRect(0, GROUND - 160, W, 160);
-      bg.fillStyle(ME.COLORS.ground, Math.max(0.15, fade) * (1 - diss)).fillRect(0, GROUND, W, H - GROUND);
+      const skyA = Math.max(0.12, fade) * (1 - diss);
+      this.sky.setAlpha(skyA); this.hills.forEach((h, i) => h.setAlpha(skyA * (0.85 + i * 0.05)));
+      bg.fillStyle(0x2a0f1e, Math.max(0.15, fade) * (1 - diss)).fillRect(0, GROUND, W, H - GROUND);
+      bg.fillStyle(0xff9a6a, 0.55 * fade * (1 - diss)).fillRect(0, GROUND, W, 2);
       // 갈대: 소멸 단계에서 하나씩 사라진다
       for (const r of this.reeds) {
         const ra = r.gone < diss ? 0 : 1;
         if (!ra) continue;
         const sway = Math.sin(this.t * 1.6 + r.ph) * 8;
-        g.lineStyle(r.near ? 3 : 2, r.near ? ME.COLORS.reedNear : ME.COLORS.reedFar, (r.near ? 0.9 : 0.6) * fade).lineBetween(r.x, GROUND, r.x + sway, GROUND - r.h);
-        g.fillStyle(0xfff1c9, 0.8 * fade).fillEllipse(r.x + sway, GROUND - r.h, 6, 16);
+        g.lineStyle(r.near ? 3 : 2, r.near ? 0x3a1428 : 0x5a2440, (r.near ? 1 : 0.85) * Math.max(0.3, fade)).lineBetween(r.x, GROUND, r.x + sway, GROUND - r.h);
+        g.fillStyle(r.near ? 0x3a1428 : 0x5a2440, Math.max(0.3, fade)).fillEllipse(r.x + sway, GROUND - r.h, 6, 16);
+        g.fillStyle(0xff9a6a, 0.5 * fade).fillRect(r.x + sway + 1, GROUND - r.h - 6, 2, 6);
       }
       // 장의사
-      g.fillStyle(ME.COLORS.intruder, 1 - diss).fillRoundedRect(UX - 12, GROUND - 58, 24, 58, 6);
-      g.fillStyle(ME.COLORS.intruderHead, 1 - diss).fillCircle(UX, GROUND - 70, 11);
+      ME.drawUndertaker(g, UX, GROUND, { a: 1 - diss });
 
       this.drawKnight(g);
       // 색을 잃은 세계는 어두운 회청색으로 가라앉는다
@@ -376,26 +381,40 @@
     // 엔딩: 현실의 방 (탑뷰). 망자는 사라지고 연인만 남는다
     drawRoom(g) {
       const r = this.room || { look: 0, tv: 0 };
-      g.fillStyle(0x12161d, 1).fillRect(0, 0, W, H);
+      g.fillStyle(0x07090e, 1).fillRect(0, 0, W, H);
       const ox = W / 2 - 220, oy = 50;
-      g.fillStyle(0x1a2230, 1).fillRect(ox, oy, 440, 300);
-      g.lineStyle(2, 0x2c394a, 1).strokeRect(ox, oy, 440, 300);
-      // TV (리모컨을 누르면 켜진다)
+      // 바닥 (추리 방과 같은 나무판)
+      for (let y = 0, i = 0; y < 300; y += 20, i++) {
+        g.fillStyle([0x3a2a20, 0x35261d, 0x3e2d22][i % 3], 1).fillRect(ox, oy + y, 440, 18);
+        g.fillStyle(0x1e1612, 1).fillRect(ox, oy + y + 18, 440, 2);
+        g.fillStyle(0x1e1612, 1).fillRect(ox + 40 + Math.floor(ME.hash(i) * 300), oy + y, 2, 18);
+      }
+      g.fillStyle(0x5a3448, 1).fillRect(ox + 100, oy + 120, 240, 150);
+      g.lineStyle(2, 0x8a5a6a, 0.8).strokeRect(ox + 110, oy + 130, 220, 130);
+      g.lineStyle(4, 0x12161f, 1).strokeRect(ox, oy, 440, 300);
+      // TV장과 TV (리모컨을 누르면 켜진다)
+      g.fillStyle(0x241a14, 1).fillRect(ox + 140, oy + 6, 160, 28);
       g.fillStyle(0x0c0f14, 1).fillRect(ox + 150, oy + 10, 140, 18);
       if (r.tv > 0) {
         g.fillStyle(0xbfe9ff, 0.8 * r.tv * (0.9 + Math.random() * 0.1)).fillRect(ox + 154, oy + 13, 132, 12);
-        g.fillStyle(0xbfe9ff, 0.06 * r.tv).fillTriangle(ox + 150, oy + 28, ox + 290, oy + 28, ox + 220, oy + 230);
+        g.fillStyle(0xbfe9ff, 0.10 * r.tv).fillTriangle(ox + 150, oy + 28, ox + 290, oy + 28, ox + 220, oy + 240);
       }
       // 소파
-      g.fillStyle(0x3a4a5c, 1).fillRect(ox + 120, oy + 200, 200, 50);
-      g.fillStyle(0x2c394a, 1).fillRect(ox + 120, oy + 238, 200, 12);
-      g.fillStyle(0x334355, 1).fillRect(ox + 132, oy + 208, 40, 26);   // 비어 있는 왼쪽 자리 (눌린 쿠션)
+      g.fillStyle(0x000000, 0.35).fillRect(ox + 124, oy + 206, 200, 50);
+      g.fillStyle(0x2c3650, 1).fillRect(ox + 120, oy + 200, 200, 50);
+      g.fillStyle(0x3a4862, 1).fillRect(ox + 120, oy + 200, 14, 44).fillRect(ox + 306, oy + 200, 14, 44);
+      g.fillStyle(0x2c3650, 1).fillRect(ox + 120, oy + 238, 200, 12);
+      g.fillStyle(0x4a5a78, 1).fillRect(ox + 138, oy + 206, 78, 28).fillRect(ox + 224, oy + 206, 78, 28);
+      g.fillStyle(0x3a4862, 1).fillRect(ox + 146, oy + 214, 44, 14);   // 비어 있는 왼쪽 자리 (눌린 쿠션)
       // 연인 (오른쪽). look: 0 정면(TV), 0.5 소파를 둘러봄, -1 왼쪽 자리를 바라봄
-      const a = 0.85 + Math.sin(this.t * 2) * 0.05, bx = ox + 292, by = oy + 222;
-      g.fillStyle(0x8fa0b4, a).fillCircle(bx, by, 12);
+      const a = 0.9 + Math.sin(this.t * 2) * 0.05, bx = ox + 272, by = oy + 222;
+      g.fillStyle(0x6a5a7a, a).fillRoundedRect(bx - 14, by - 6, 28, 20, 6);
       const hx = bx + (r.look < 0 ? r.look * 5 : Math.sin(this.t * 1.5) * 3 * r.look), hy = by - 12 + (r.look < 0 ? 2 : 0);
-      g.fillStyle(0xc9d4df, a).fillCircle(hx, hy, 8);
-      g.fillStyle(0x0c0f14, 1).fillRect(bx - 22, by + 2, 10, 4);       // 리모컨
+      g.fillStyle(0x3a2a24, a).fillCircle(hx, hy, 9);
+      g.fillStyle(0x4a3a30, a).fillCircle(hx - 3, hy - 3, 4);
+      g.fillStyle(0x0c0f14, 1).fillRect(bx - 34, by + 2, 10, 4);       // 리모컨
+      // 창밖 네온이 바닥에 비침
+      g.fillStyle(0xff4fa3, 0.08).fillTriangle(ox, oy + 90, ox, oy + 200, ox + 160, oy + 230);
     }
   }
 
