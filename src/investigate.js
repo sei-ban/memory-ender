@@ -319,7 +319,7 @@
       this.waves.forEach(w => { w.r += 380 * dt; w.life -= dt; });
       this.waves = this.waves.filter(w => w.life > 0);
       // 신호 펄스: 신호가 강할수록 자주
-      if (this.phase === 'explore') {
+      if (this.phase === 'explore' && this.tut && this.tut.stage >= 1) {   // 걷기 안내가 끝난 뒤부터 신호를 켠다
         const s = this.signal();
         this.pulse -= dt;
         if (s > 0.05 && this.pulse <= 0) { this.pulses.push({ r: 16, life: 0.6, s }); this.pulse = 1.1 - s * 0.95; ME.sfx.play('ping', s); }
@@ -395,7 +395,7 @@
       this.txtObj.setText('목표: ' + obj);
       this.txtCount.setText('단서 ' + found + ' / ' + this.clues.length);
       h.fillStyle(0x0b0f15, 0.6).fillRect(16, H - 52, 200, 34);
-      const s = this.phase === 'explore' ? this.signal() : 0;
+      const s = this.phase === 'explore' && this.tut && this.tut.stage >= 1 ? this.signal() : 0;
       h.fillStyle(0x2a3646, 1).fillRect(56, H - 42, 150, 12);
       h.fillStyle(s > 0.6 ? 0xbff3ff : 0x78e6ff, 1).fillRect(56, H - 42, 150 * s, 12);
       // 커서 (패널 위에도 보이도록 최상단 레이어)
