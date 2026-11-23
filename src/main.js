@@ -64,12 +64,16 @@
   }
 
   // 어느 장면에서든 Esc를 누르면 타이틀로 (챕터 선택과 함께 배포 빌드에도 유지)
+  // (11/24: Esc를 연달아 누르거나 장면 전환 중에 누르면 화면이 검게 멈추던 문제 → 반복 입력 무시, 0.6초 간격, 전환 중인 장면까지 정리)
+  let escAt = 0;
   window.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || !window.__meGame) return;
+    if (e.key !== 'Escape' || e.repeat || !window.__meGame) return;
+    const now = performance.now(); if (now - escAt < 600) return; escAt = now;
     const g = window.__meGame;
-    ME.sfx.bgmStop(); ME.sfx.humOff();
-    g.scene.getScenes(true).forEach(sc => { if (sc.scene.key !== 'Title') sc.scene.stop(); });
-    g.scene.start('Title');
+    ME.sfx.bgmStop(); ME.sfx.humOff(); if (ME.sfx.pullOff) ME.sfx.pullOff();
+    g.scene.scenes.forEach(sc => { if (sc.scene.key !== 'Title' && (sc.sys.isActive() || sc.sys.isPaused() || sc.sys.isVisible())) sc.scene.stop(); });
+    const t = g.scene.getScene('Title');
+    if (t.sys.isActive()) t.scene.restart(); else g.scene.start('Title');
   });
 
   window.__meGame = new Phaser.Game({

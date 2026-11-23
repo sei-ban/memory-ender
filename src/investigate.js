@@ -38,7 +38,7 @@
       this.uiTexts = [];
 
       this.clues = ME.CLUES.map(c => ({ ...c, prog: 0, found: false }));
-      this.player = { x: 480, y: 470 };
+      this.player = { x: I.startX || 480, y: I.startY || 470 };
       this.mouse = { x: W / 2, y: H / 2, down: false, clicked: false };
       this.input.on('pointermove', p => { this.mouse.x = p.x; this.mouse.y = p.y; });
       this.input.on('pointerdown', p => { this.mouse.x = p.x; this.mouse.y = p.y; this.mouse.down = true; this.mouse.clicked = true; });

@@ -37,8 +37,9 @@
       this.gFx = this.add.graphics();
       this.gCursor = this.add.graphics().setDepth(50);
       this.gMem = this.add.graphics().setDepth(20);
+      this.gGhost = this.add.graphics().setDepth(20);   // 마지막 기억 위에 겹치는 첫 기억(소파의 밤)
       const txt = (x, y, size, color, depth) => this.add.text(x, y, '', { ...font, fontSize: size, color, align: 'center', wordWrap: { width: W - 160 }, lineSpacing: 6 }).setOrigin(0.5).setDepth(depth).setAlpha(0);
-      this.memText = txt(W / 2, H - 70, '20px', '#fff6e4', 21);
+      this.memText = txt(W / 2, H - 70, '20px', '#fff6e4', 21).setStroke('#140c08', 5);
       this.cineText = txt(W / 2, 110, '22px', '#ffffff', 21).setStroke('#1a1014', 5);
       this.roomText = txt(W / 2, H - 90, '18px', '#c9d4df', 21);
       this.memSkip = this.add.text(W - 24, H - 20, ME.FUNERAL_TEXT.memSkip, { ...font, fontSize: '12px', color: '#d8c8b0' }).setOrigin(1, 1).setDepth(21).setAlpha(0);
@@ -98,7 +99,7 @@
     endMemory() {
       this.mem = null;
       this.tweens.killTweensOf(this.memText); this.tweens.killTweensOf(this.memSkip);
-      this.memText.setAlpha(0); this.memSkip.setAlpha(0); this.gMem.clear();
+      this.memText.setAlpha(0); this.memSkip.setAlpha(0); this.gMem.clear(); this.gGhost.clear();
       this.cameras.main.flash(350, 255, 248, 230);
       if (this.parts.every(p => p.state === 'off')) { this.phase = 'cinema'; this.cine = { t: 0, prog: 0, line: -1 }; this.prompt.setText(ME.FUNERAL_TEXT.spirit).setFontSize(15).setY(H - 62); }
       else this.phase = 'armor';
@@ -210,7 +211,7 @@
 
     draw() {
       const bg = this.gBg, g = this.gWorld, fx = this.gFx;
-      bg.clear(); g.clear(); fx.clear(); this.gMem.clear();
+      bg.clear(); g.clear(); fx.clear(); this.gMem.clear(); this.gGhost.clear();
       if (this.phase === 'room') { if (this.coach) { this.coach.set(null); this.coach.update(0); } this.gCursor.clear(); this.markText.setAlpha(0); this.drawRoom(bg); return; }
 
       const removed = this.parts.filter(q => q.state === 'off').length;
@@ -316,7 +317,7 @@
 
     // ---------- 기억 장면 (갑옷을 뜯을 때마다 한 장면씩) ----------
     // 정면 시점(소파 뒤에서 TV를 보는 구도). 바랜 필름 느낌: 따뜻한 톤 + 비네트 + 노이즈
-    drawMemory(g, id, t) {
+    drawMemory(g, id, t, bare) {
       const fl = 0.92 + Math.random() * 0.08; // 필름 깜빡임
       const appear = Math.min(1, t / 0.6), A = appear;
       const hs = ME.hash;
@@ -442,15 +443,15 @@
         g.fillStyle(0x6a4a3a, A).fillCircle(640, 344, 15).fillRect(625, 342, 30, 46);              // 머리카락이 덮은 뒷머리
         g.fillStyle(0xffe7b0, A * 0.7).fillRect(623, 360, 2, 60).fillRect(655, 360, 2, 60);
         const over = Math.min(1, Math.max(0, (t - 0.8) / 1.6));                                 // 겹쳐 보이는 소파의 밤들
-        // 같은 뒷모습 위로 소파에 앉아 TV를 보던 그녀의 뒷모습이 겹친다
-        for (let k = 0; k < 3; k++) {
-          const ox = (Math.random() - 0.5) * 16 * over, a = over * 0.28;
-          g.fillStyle(0xbfe9ff, a * 0.8).fillRect(480 + ox + k * 10, 150 + k * 6, 320, 180);           // 그때의 TV 빛
-          g.fillStyle(0x5a4636, a).fillRoundedRect(500 + ox, 392 + k * 4, 280, 70, 14);              // 소파 등받이
-          g.fillStyle(0x6a4a3a, a * 1.4).fillCircle(640 + ox, 352 + k * 3, 22).fillRoundedRect(618 + ox, 346 + k * 3, 44, 50, 10); // 앉은 뒷모습
+        // 첫 기억(소파의 밤) 화면 전체가 겹친다. 앉은 그녀의 뒷모습이 지금 서 있는 뒷모습과 같은 자리에 오도록 맞춘다
+        if (over > 0 && this.gGhost) {
+          const gg = this.gGhost, jx = (Math.random() - 0.5) * 10 * over;
+          gg.clear().setPosition(640 - 560 + jx, 344 - 318).setAlpha(over * 0.4);
+          this.drawMemory(gg, 'sofa', t, true);
         }
         for (let i = 0; i < 14 * over; i++) g.fillStyle(0x78e6ff, Math.random() * over).fillRect(Math.random() * W, Math.random() * H, 20 + Math.random() * 80, 2);
       }
+      if (bare) return;
       // 바랜 필름: 비네트 + 노이즈 + 아래 글 띠
       for (let i = 0; i < 12; i++) {
         const d = (12 - i) * 7, a2 = 0.035 * appear;
